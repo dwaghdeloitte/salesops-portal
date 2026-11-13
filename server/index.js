@@ -2,9 +2,11 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
+const path = require('path');
 
 const app = express();
-app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173' }));
+const isProd = process.env.NODE_ENV === 'production';
+app.use(cors({ origin: isProd ? false : (process.env.CLIENT_URL || 'http://localhost:5173') }));
 app.use(express.json());
 
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many login attempts. Please try again in 15 minutes.' } });
@@ -28,6 +30,12 @@ app.use('/api/leaderboard', require('./routes/leaderboard'));
 app.use('/api/onboarding', require('./routes/onboarding'));
 
 app.get('/api/health', (_, res) => res.json({ ok: true }));
+
+if (isProd) {
+  const clientDist = path.join(__dirname, '..', 'client', 'dist');
+  app.use(express.static(clientDist));
+  app.get('*', (req, res) => res.sendFile(path.join(clientDist, 'index.html')));
+}
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
